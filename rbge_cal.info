@@ -1,0 +1,7 @@
+name = "RBGE Universal Calendar"
+description = "All the bits and bobs for the Universal Calendar to work"
+package = RBGE
+core = 7.x
+version = 7.x-1.0
+stylesheets[all][] = main.css
+scripts[] = main.js

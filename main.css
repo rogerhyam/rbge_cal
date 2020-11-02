@@ -1,0 +1,537 @@
+
+.item-list ul.rbge-cal-venue-location li,
+.item-list ul.shs-hierarchy li{
+    display: inline-block;
+}
+
+.item-list ul.shs-hierarchy li.first{
+    margin-left: 0px;
+}
+
+.node-event .field-name-body .field-items{
+    border: solid #cccccc 1px;
+    margin-top: 6px;
+    padding: 0.5em;
+}
+
+.node-event .field-name-body .field-items p{
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+.node-event .field-label{
+    width: 30%;
+    text-align: right;
+    padding-right: 1em;
+}
+
+.node-event .field-items{
+    width: 65%;
+}
+
+/* dates when the repeat are scrolling */
+div.region.region-content div.content div.field.field-name-field-event-date.field-type-date div.field-items{
+    max-height: 10em;
+    max-width: 65%;
+    overflow: auto;
+    padding-right: 1em;
+    font-weight: bold;
+}
+
+/* every other line in multiple dates is gray */
+div.region.region-content div.field.field-name-field-event-date.field-type-date div.field-items div.field-item.odd,
+div.region.region-content div.field.field-name-field-event-date.field-type-date div.field-items div.date-repeat-rule
+{
+    background-color: #eeeeee;
+}
+
+/* when an event appears as a teaser on a venue page */
+body.page-taxonomy-term .node-event.node-teaser{
+    border-bottom: #cccccc 2px solid; 
+    margin: 0px;
+}
+
+body.page-taxonomy-term .node-event.node-teaser .submitted{
+    display:none;
+}
+
+body.page-taxonomy-term .node-event.node-teaser .field-name-field-event-venue{
+    display:none;
+}
+
+body.page-taxonomy-term .node-event.node-teaser .field-label{
+    display: none;
+    width: 10%;
+    text-align: right;
+    padding-right: 1em;
+}
+
+body.page-taxonomy-term .node-event.node-teaser .field-name-body .field-items{
+    border: none;
+    padding-left: 0px;
+    margin-bottom: 0.5em;
+    margin-top: 0em;
+}
+
+body.page-taxonomy-term div.region.region-content div.node-event.node-teaser div.field.field-name-field-event-date.field-type-date div.field-items{
+    max-height: 8em;
+    max-width: 65%;
+    overflow: auto;
+    border:none;
+}
+
+body.page-taxonomy-term h2{
+    margin-top: 1em;
+}
+
+/* hide the end date - events can't go over a day 
+div.form-item-field-event-date-und-0-value2-date{
+    display: none;
+}
+*/
+
+
+/* --------------- */
+/* The Today BY VENUE */
+/* --------------- */
+
+div.rbge-cal-today-by-venue{
+    float: left;
+    width: 45%;
+    min-width: 300px;
+}
+
+.rbge-cal-today-by-venue .rbge-cal-venue a{
+    font-weight: bold;
+}
+
+
+.rbge-cal-today-by-venue .rbge-cal-event a{
+    font-weight: normal;
+    color: green;
+}
+
+#rbge-cal-today-right-col{
+    position: relative;
+    width: 460px;
+    float: right;
+}
+
+#rbge-cal-stories-embed{
+    float: right;
+    width: 450px;
+    height: 650px;
+    min-width: 300px;
+    border: solid rgb(232, 232, 232) 1px;
+    border-radius: 5px;
+    
+}
+
+#rbge-cal-stories-embed-inner{
+    overflow: auto;
+    height: 600px;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+#rbge-cal-twitter-embed h2,
+#rbge-cal-stories-embed h2{
+    padding: 10px;
+}
+
+#rbge-cal-stories-embed h2{
+    border-bottom: solid rgb(232, 232, 232) 1px;
+}
+
+#rbge-cal-twitter-embed h2 a,
+#rbge-cal-stories-embed h2 a{
+    font-family: 'Helvetica Neue', Roboto, 'Segoe UI', Calibri, sans-serif;
+    font-size: 18px;
+    font-weight: bold;
+    color: black;
+
+}
+
+#rbge-cal-twitter-embed{
+    float: right;
+    width: 450px;
+    margin-top: 10px;
+    border: solid rgb(232, 232, 232) 1px;
+    border-radius: 5px;
+}
+
+body div.timeline-Widget div.timeline-Header h1.timeline-Header-title{
+    border: solid red 1px;
+    font-family: 'Helvetica Neue', Roboto, 'Segoe UI', Calibri, sans-serif !important;
+    font-size: 18px !important;
+}
+
+
+/* --------------- */
+/* The Availability page */
+/* --------------- */
+
+table.rbge-cal-availability tbody{
+    border: none;
+    height: 100%;
+}
+
+table.rbge-cal-availability tr.rbge-cal-heading-row,
+table.rbge-cal-availability tr.rbge-cal-heading-days-row,
+table.rbge-cal-availability tr.rbge-cal-heading-weeks-row {
+  border-right: solid gray 1px;
+  padding: none;
+}
+
+
+
+.rbge-cal-availability .rbge-cal-venue-row{
+    border: solid gray 1px;
+}
+
+.rbge-cal-availability td.venue-names{
+    width: 20em;
+}
+
+
+table.rbge-cal-availability td.time-scales{
+   position: relative;
+   height: 2em;
+}
+
+table.rbge-cal-availability td.time-scales div.venue_repeats{
+   position: absolute;
+   height: 2.6em;
+   top: 0px;
+   background-color: hsla(117, 100%, 25%, 0.61);
+   border-left:solid gray 1px;
+   border-right:solid gray 1px;
+   cursor: pointer;
+}
+
+/* if it is tentative then we color it yellow */
+table.rbge-cal-availability td.time-scales div.venue_repeats.rbge-cal-event-status-11{
+    background-color: hsla(58, 100%, 45%, 0.61);
+}
+
+/* if it is cancelled then we color it orange */
+table.rbge-cal-availability td.time-scales div.venue_repeats.rbge-cal-event-status-13{
+    background-color: hsla(17, 100%, 45%, 0.61);
+}
+
+/* if it an alert then we color it RED */
+table.rbge-cal-availability td.time-scales div.venue_repeats.rbge-cal-category-203,
+table.rbge-cal-availability td.time-scales div.venue_repeats.rbge-cal-category-204,
+table.rbge-cal-availability td.time-scales div.venue_repeats.rbge-cal-category-205,
+table.rbge-cal-availability td.time-scales div.venue_repeats.rbge-cal-category-206,
+table.rbge-cal-availability td.time-scales div.venue_repeats.rbge-cal-category-207{
+    background-color: red;
+    color: inherit;
+    line-height: inherit;
+    padding: 0px;
+}
+
+/* wherever the heading appears */
+table.rbge-cal-availability td.time-scales div.period-heading{
+    position: absolute;
+    top: 0px;
+}
+
+/* when the heading appears at the top */
+table.rbge-cal-availability tr.rbge-cal-heading-row td.time-scales div.period-heading,
+table.rbge-cal-availability tr.rbge-cal-heading-days-row td.time-scales div.period-heading,
+table.rbge-cal-availability tr.rbge-cal-heading-weeks-row td.time-scales div.period-heading{
+    height: 2.6em;
+    background-color: transparent;
+    text-align: center;
+    vertical-align: middle;
+    border-top: 1px gray solid;
+    border-left: 1px gray solid;
+}
+
+/* when the heading appears behind the venue repeats */
+table.rbge-cal-availability tr.rbge-cal-venue-row td.time-scales div.period-heading{
+    border-left: 1px #cccccc dotted;
+    height: 2.6em;
+    text-align: center;
+    color: transparent;
+    cursor: crosshair;
+}
+
+table.rbge-cal-availability tr.rbge-cal-venue-row td.time-scales div.rbge-cal-garden-closed{
+    position: absolute;
+    top: 0px;
+    left: 20%;
+    width: 60%;
+    height: 2.6em;
+    background: rgba(205, 205, 205, 0.2);
+    text-align: center;
+    color: rgba(150, 150, 150, 0.2);
+    font-weight: bold;
+}
+
+
+
+table.rbge-cal-availability tr.rbge-cal-venue-row td.time-scales div.period-heading a{
+    display: none;
+}
+
+/* selective highlighting of periods */
+table.rbge-cal-availability tr.rbge-cal-heading-days-row td.time-scales div.period-heading,
+table.rbge-cal-availability tr.rbge-cal-heading-weeks-row td.time-scales div.period-heading{
+    background-color: #cccccc;
+}
+
+table.rbge-cal-availability tr.rbge-cal-heading-days-row td.time-scales div.period-heading.period-selected,
+table.rbge-cal-availability tr.rbge-cal-heading-weeks-row td.time-scales div.period-heading.period-selected{
+    background-color: transparent;
+}
+
+td.rbge-cal-jump-to{
+    text-align: right;
+}
+
+td.rbge-cal-venue-switch{
+    width: 0.8em;
+    padding-right: 0px;
+    vertical-align: top;
+    cursor: pointer;
+}
+
+td.rbge-cal-venue-switch span.rbge-cal-venue-switch-on{
+    display: none;
+}
+
+/* depth colours for venue tree */
+tr.rbge-cal-venue-depth-0 td.rbge-cal-venue-switch,
+tr.rbge-cal-venue-depth-0 td.venue-names{
+    background-color: black;
+    color: white;
+    border-bottom: solid white 1px;
+}
+
+tr.rbge-cal-venue-depth-0 td.rbge-cal-venue-switch a,
+tr.rbge-cal-venue-depth-0 td.venue-names a{
+    color: white;
+}
+
+tr.rbge-cal-venue-depth-1 td.rbge-cal-venue-switch,
+tr.rbge-cal-venue-depth-1 td.venue-names{
+    background-color: gray;
+    color: white;
+    border-bottom: solid white 1px;
+}
+
+tr.rbge-cal-venue-depth-1 td.rbge-cal-venue-switch a,
+tr.rbge-cal-venue-depth-1 td.venue-names a{
+    color: white;
+}
+tr.rbge-cal-venue-row td.venue-names{
+    white-space: nowrap;
+    overflow: hidden; 
+}
+
+tr.rbge-cal-venue-row td.venue-names a.rbge-cal-schedule-link{
+    font-size: .75em;
+    vertical-align: super;
+}
+
+div.venue_repeat_dialogue{
+    display: none;
+    position:absolute;
+    z-index: 100;
+    left: -21em;
+    top: -4em;
+    height: 5em;
+    width: 20em;
+    background-color:white;
+    border: solid gray 1px;
+    padding: 0.5em;
+    box-shadow: 9px 10px 20px -1px rgba(0,0,0,0.8);
+    border-radius: 8px;
+}
+
+/* --------------- */
+/* The Today page */
+/* --------------- */
+
+.item-list ul.rbge-day-hours{
+    list-style: none;
+    padding: 0px;
+    margin: 0px;
+}
+
+
+.item-list ul.rbge-day-hours ul{
+    list-style: none;
+}
+
+.item-list ul.rbge-day-hours li{
+    margin: 0px;
+}
+
+.item-list ul.rbge-day-hours li h3{
+    padding: 0.5em;
+    border: 1px gray solid;
+    background-color: #f1f2f2;
+
+}
+
+.rbge-day-hours .field-label{
+    width: auto;
+}
+
+ul.rbge-day-hours div.item-list ul div.field.field-name-body.field-type-text-with-summary.field-label-hidden div.field-items{
+    border: none;
+    margin: 0px;
+    padding: 0px;
+}
+
+ul.rbge-day-hours div.item-list ul div.field.field-name-body.field-type-text-with-summary.field-label-hidden div.field-items p{
+    margin-bottom: 0.5em;
+    margin-top: 0em;
+}
+
+/* hide the author details */
+.rbge-day-hours span.submitted{
+    display: none;
+}
+
+/* move the links in a bit */
+.rbge-day-hours div.links ul{
+    margin: 0px;
+}
+
+/* included a second time because not included when field renderer not loaded */
+.shs-hierarchy li:after {
+  content: '>';
+  margin: 0 0 0 5px;
+}
+.shs-hierarchy li.last:after {
+  content: '';
+  margin: 0;
+}
+
+.field-name-field-ict-requested .field-item {
+    float: left;
+}
+.field-name-field-ict-requested .field-item:after {
+    content: ',';
+    margin-right: 0.5em;
+}
+.field-name-field-ict-requested .field-item:last-child:after {
+    content: '.';
+}
+
+#search-block-form{
+    float: right;
+    margin-top: -48px;
+}
+
+/* Tidy up calendar display */
+
+/* single event */
+div.calendar-calendar tbody div.inner div.contents{
+}
+div.calendar-calendar tbody div.inner div.contents div.views-field{
+    display:inline;
+}
+
+form#event-node-form div.rbge-cal-actions-top{
+    float: right;
+    margin-top: 0px;
+}
+
+form#event-node-form div.rbge-cal-actions-bottom{
+    border-top: solid 1px #e3e4e4;
+    border-bottom: solid 1px #e3e4e4;
+    padding-top: 1em;
+    padding-bottom: 1em;
+}
+
+
+form#event-node-form div.form-actions{
+    text-align: right;
+}
+form#event-node-form div.form-actions input.form-submit{
+    font-size: 18px;
+    padding: 4px;
+    border-radius: 10px;
+}
+
+form#event-node-form div.form-actions input#edit-submit--2.form-submit,
+form#event-node-form div.form-actions input#edit-submit.form-submit{
+    color:green;
+}
+form#event-node-form div.form-actions input#edit-delete--2.form-submit
+form#event-node-form div.form-actions input#edit-delete.form-submit{
+    color:gray;
+}
+
+/* temporally sensative display highlighting */
+.rbge-highlight-as-now{
+    background-color: #FFF380;
+}
+
+/* status needs to override highlight as now */
+.rbge-cal-status-13{
+    background-color: hsla(17, 100%, 45%, 0.30);
+}
+
+.rbge-cal-category-203,
+.rbge-cal-category-204,
+.rbge-cal-category-205,
+.rbge-cal-category-206,
+.rbge-cal-category-207{
+    background-color: red;
+    color: white;
+    line-height: 2em;
+    padding: 0.5em;
+}
+.rbge-cal-category-203 a,
+.rbge-cal-category-204 a,
+.rbge-cal-category-205 a,
+.rbge-cal-category-206 a,
+.rbge-cal-category-207 a{
+    color: white !important;
+}
+
+
+.rbge-cal-index-block{
+    border: solid 1px #e3e4e4;
+    padding: 1em;
+}
+
+/* Jump to form on the Today page */
+#today-jump-date{
+    display: block;
+    border: none;
+    background: transparent;
+    margin-left: -20px;
+}
+
+body.page-rbge-today h1{
+    margin-right: 10px;
+}
+
+/* clean up date repeat view */
+div.date-display-range{
+    display: inline;
+}
+
+/* venue display */
+div.rbge-float-right{
+    float: right;
+}
+
+.rbge-cal-hidden{
+    display: none;
+}
+
+#rbge-cal-list td{
+    vertical-align: top;
+}
+
+#rbge-cal-list .rbge-cal-even{
+    background-color: rgb(241,242,242);
+}

@@ -1,0 +1,1587 @@
+
+<?php
+
+
+// Implements hook_init()
+function rbge_cal_init() {
+  
+    global $user;
+
+    $calling_ip = $_SERVER['REMOTE_ADDR'];
+
+    $forbidden = true;
+
+    // are they on the local network
+    if(preg_match('/^192\.168\.[0-9]+\.[0-9]+$/', $calling_ip)){
+        $forbidden = false;
+    }
+    
+    // access from the green pages server
+    if(preg_match('/^37\.123\.118\.173$/', $calling_ip)){
+        $forbidden = false;
+    }
+    
+    // are they calling from this machine?
+    if ($_SERVER['SERVER_ADDR'] == $calling_ip){
+        $forbidden = false;
+    }
+    
+    // they are looking at a service
+    if(drupal_match_path($_GET['q'], 'rbge_service')){
+        $forbidden = false;
+    }
+
+    // they are looking at a service
+    if(drupal_match_path($_GET['q'], 'rbge_service_sync')){
+        $forbidden = false;
+    }
+
+    // they are looking at a service
+    if(preg_match('/^rbge_service_image\//', $_GET['q'])){
+        $forbidden = false;
+    }
+
+    // they are looking at a service
+    if(drupal_match_path($_GET['q'], 'rbge_service_cat_flags')){
+        $forbidden = false;
+    }
+
+    // they are looking at a service
+    if(drupal_match_path($_GET['q'], 'rbge_service_alerts')){
+        $forbidden = false;
+    }
+
+    // are they trying to login on https
+    if(drupal_match_path($_GET['q'], 'user/login')){
+        $forbidden = false;
+    }
+
+    // they are looking at the public page
+    if(drupal_match_path(drupal_get_path_alias(), 'public')){
+        $forbidden = false;
+    }
+
+    // are they authorised
+    if( user_is_logged_in() ){
+        $forbidden = false;
+    }
+    
+    if($forbidden){
+        // we have to hide this call from drush or it barfs
+        if (!function_exists('drush_main')) {
+          drupal_goto('public');
+        }
+    }
+    
+    // set up the ie meta tag
+    $element = array(
+        '#type' => 'html_tag',
+        '#tag' => 'meta',
+        '#attributes' => array('http-equiv' => 'X-UA-Compatible', 'content' => 'IE=edge'),
+        '#weight' => -1001,
+      );
+      drupal_add_html_head($element, 'chrome_frame');
+
+}
+
+// set up the menu calls
+function rbge_cal_menu(){
+  
+    $items['rbge/today'] = array(
+        'title' => "Today at RBGE",
+        'access callback' => true,
+        'page callback' => 'today_by_venue',
+        'page arguments' => array(2,3,4),
+        'file' => 'includes/today_by_venue.inc',
+        'type' => MENU_NORMAL_ITEM,
+    );
+   
+    $items['rbge/today_embed'] = array(
+        'title' => "Today at RBGE Embed",
+        'access callback' => true,
+        'page callback' => 'today_by_venue_embed',
+        'page arguments' => array(2,3,4),
+        'file' => 'includes/today_by_venue.inc',
+        'type' => MENU_NORMAL_ITEM,
+    );
+   
+   /*
+    $items['rbge/today/by_venue'] = array(
+        'title' => "By Venue",
+        'access callback' => true,
+        'type' => MENU_DEFAULT_LOCAL_TASK,
+        'weight' => 0,
+    );
+    */
+    /*
+    $items['rbge/today/by_start'] = array(
+        'title' => "By Start Time",
+        'page callback' => 'rbge_cal_today',
+        'page arguments' => array(2,3,4),
+        'file' => 'includes/today.inc',
+        'type' => MENU_LOCAL_TASK,
+        'access callback' => true,
+        'weight' => 10,
+    );
+    */
+    $items['rbge/availability'] = array(
+        'title' => "Venue Availability",
+        'page callback' => 'rbge_cal_availability',
+        'page arguments' => array(2,3,4,5),
+        'file' => 'includes/availability.inc',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => true,
+    );
+    
+    $items['rbge/venue/schedule'] = array(
+        'title' => "Venue Schedule Download",
+        'page callback' => 'rbge_cal_venue_schedule',
+        'page arguments' => array(3,4,5,6),
+        'file' => 'includes/venue_schedule.inc',
+        'type' => MENU_CALLBACK,
+        'access callback' => true,
+    );
+    
+    
+    $items['rbge/apps'] = array(
+        'title' => "Approvals links avoiding login",
+        'page callback' => 'rbge_cal_approvals',
+        'page arguments' => array(2,3,4), // venue|category, approve|view, code
+        'file' => 'includes/approvals.inc',
+        'type' => MENU_CALLBACK,
+        'access callback' => true,
+    );
+
+    $items['rbge/stories'] = array(
+        'title' => "Proxy for stories feed",
+        'page callback' => 'rbge_cal_stories',
+        'page arguments' => array(2),
+        'type' => MENU_CALLBACK,
+        'access callback' => true,
+    );
+    
+    $items['rbge/denied'] = array(
+        'title' => "Access Denied",
+        'page callback' => 'rbge_cal_denied',
+        'file' => 'includes/denied.inc',
+        'page arguments' => array(),
+        'type' => MENU_CALLBACK,
+        'access callback' => true,
+    );
+    
+    $items['rbge/venue_managers'] = array(
+        'title' => "Venue Managers",
+        'page callback' => 'rbge_cal_venue_managers',
+        'file' => 'includes/venue_managers.inc',
+        'page arguments' => array(),
+        'access callback' => 'rbge_cal_user_has_role',   
+        'access arguments' => array(array('Vocabulary Manager')), // arg 1 loads the user, arg 2 is the role name
+        'type' => MENU_NORMAL_ITEM,
+    );
+    
+    $items['rbge/lists'] = array(
+        'title' => "Lists",
+        'page callback' => 'rbge_cal_lists_pending',
+        'file' => 'includes/lists.inc',
+        'page arguments' => array(),
+        'access callback' => 'rbge_cal_user_has_role',   
+        'access arguments' => array(array('Editor')), // arg 1 loads the user, arg 2 is the role name
+    );
+    
+    $items['rbge/lists/pending'] = array(
+      'title' => 'Pending',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => 0,
+    );
+    
+    $items['rbge/lists/my_events'] = array(
+        'title' => "My Events",
+        'page callback' => 'rbge_cal_lists_my_events',
+        'file' => 'includes/lists.inc',
+        'page arguments' => array(),
+        'type' => MENU_LOCAL_TASK,
+        'access callback' => true,
+        'weight' => 10,
+    );
+    
+    $items['rbge/lists/by_category'] = array(
+        'title' => "By Category",
+        'page callback' => 'rbge_cal_lists_by_category',
+        'file' => 'includes/lists.inc',
+        'page arguments' => array(),
+        'type' => MENU_LOCAL_TASK,
+        'access callback' => true,
+        'weight' => 20,
+    );
+    
+    /*
+    
+    $items['rbge/lists/pending'] = array(
+        'title' => "Pending",
+        'page callback' => 'rbge_cal_lists_pending',
+        'file' => 'includes/lists.inc',
+        'page arguments' => array(),
+        'type' => MENU_LOCAL_TASK,
+        'access callback' => true,
+    );
+    
+    */
+    
+    $items['phpinfo'] = array(
+        'title' => "display php info",
+        'page callback' => 'phpinfo',
+        'type' => MENU_CALLBACK,
+        'access callback' => true,
+    );
+    
+    return $items;
+}
+
+/**
+ * Implements hook_menu_alter().
+ * hiding the password reset options
+ * intercept the call to render the taxonomy terms
+ */
+ function rbge_cal_menu_alter(&$items) {
+   $items['user/password']['access callback'] = 'user_access';
+   $items['user/password']['access arguments'] = array('administer users');
+   $items['taxonomy/term/%taxonomy_term']['page callback'] = 'rbge_cal_taxonomy_term_page';
+ }
+
+/**
+ * Page callback for taxonomy terms.
+ *
+ * Redirect selected vocabularies to custom functions, defaulting to the core
+ * taxonomy_term_page() function for all remaining terms.
+ */
+function rbge_cal_taxonomy_term_page($term) {
+  switch($term->vocabulary_machine_name) {
+    case 'venues':
+      module_load_include('inc', 'rbge_cal', 'includes/venue_page');
+      return rbge_cal_taxonomy_term_venue_page($term);
+    default:
+      return taxonomy_term_page($term);
+  }
+}
+
+/*
+    Implements hook_node_validate
+*/
+function rbge_cal_node_validate($node, $form, &$form_state) {
+    
+    // do not validate when adding exceptions or additions
+    if(in_array('date_repeat_add_exception', $form_state['submit_handlers'])) return;
+    if(in_array('date_repeat_add_addition', $form_state['submit_handlers'])) return;
+    
+    // do not validate on deletion
+    if ($form_state['triggering_element']['#value'] == 'Delete'){
+         // dpm($form_state['triggering_element']);
+         return; 
+    }
+    
+    global $user;
+
+    // only deal with the event objects
+    if ($node->type != 'event') return;
+    
+    // need full version of node to access variables not available in form
+    if($node->nid) $event = entity_metadata_wrapper('node', node_load($node->nid)); 
+    else $event = entity_metadata_wrapper('node', $node);
+    
+    // we don't allow anonymous events
+    /*
+    if(empty($form['field_lead_contact']['und'][0]['value']['#default_value'])){
+        $form['field_lead_contact']['und'][0]['value']['#default_value'] = $user->name;
+    }
+    */
+    if(empty($form_state['values']['field_lead_contact']['und'][0]['value'])){
+        form_set_error('field_lead_contact', "Nice try but you can't set events as being annonymous.");
+    }
+
+    $start_date = $form_state['values']['field_event_date']['und'][0]['value']; // this is UTC
+    $end_date = $form_state['values']['field_event_date']['und'][0]['value2']; // this is UTC
+    
+    if(!empty($form_state['values']['field_event_date']['und'][0]['rrule'])){
+        $repeat = $form_state['values']['field_event_date']['und'][0]['rrule'];
+    }else{
+        $repeat = null;
+    }
+    $dates = rbge_get_all_dates($start_date, $end_date, $repeat);
+    
+    // we put a repeat limit on the dates of 365 - just to stop trouble?
+    if(count($dates) > 365){
+        form_set_error('event_date', "Maximum repeats exceeded. An event can repeat a maximum of 365 times.");
+    }
+    
+    // if - requires exclusive use check availability of venue
+    if($form_state['values']['field_exclusive_use_of_venue']['und'][0]['value']){
+        
+        $venue_tid = $form_state['values']['field_event_venue']['und'][0]['tid'];
+        $venue = taxonomy_term_load($venue_tid);
+
+        // we need to work up the venue hierarchy to find any collisions
+        $collisions = array();
+        $all_venues = taxonomy_get_parents_all($venue_tid);
+        foreach($all_venues as $venue){        
+            $collisions = array_merge($collisions, rbge_cal_venue_collisions($node->nid, $venue->tid, $dates));
+        }
+        
+        // we need to work down the venue hierarchy to find any collisions
+        $all_descendants = taxonomy_get_tree($venue->vid, $venue_tid);
+        //dsm($all_descendants);
+        foreach($all_descendants as $venue){        
+            $collisions = array_merge($collisions, rbge_cal_venue_collisions($node->nid, $venue->tid, $dates));
+        }
+        
+        
+        if(count($collisions) > 0){
+ //           dpm($collisions);
+            form_set_error('field_event_date', "Event Collision Issue!");
+            $londonTz = new DateTimeZone('Europe/London');
+            $utcTz = new DateTimeZone('UTC');
+            foreach($collisions as $collision){
+                $colliding_event = node_load($collision['nid']);
+                $colliding_wrapper = entity_metadata_wrapper('node', $colliding_event);
+                
+                $colliding_date = $colliding_wrapper->field_event_date->value();
+                
+                $colliding_dt = new DateTime($collision['start']);
+                
+                $colliding_link = l($colliding_wrapper->label(), '/node/' . $collision['nid'], array('attributes' => array('target'=>'_blank')));
+                
+                $colliding_date_link = l($colliding_dt->format('l jS F Y'), 'rbge/availability/' . $colliding_dt->format('Y/m/d') . '/day', array('attributes' => array('target'=>'_blank')));
+                
+                drupal_set_message("This collides with \"$colliding_link\" on $colliding_date_link", 'error' );
+            }
+        }
+    
+    }
+    
+    // if status is set to confirmed then check that field_venue_manager_approved and field_category_manager_approved are both true
+    // if not post error
+    if($form_state['values']['field_event_status']['und'][0]['tid'] == 12){
+                
+        // If they have been presented with the ability to approve the event but haven't tell them they have to.
+        // but if they haven't been presented with this option then the node should have the value already set.
+        if(!empty($form_state['values']['field_venue_manager_approved']) && $form_state['values']['field_venue_manager_approved']['und'][0]['value'] == 0){
+            form_set_error('field_venue_manager_approved', "The event must have VENUE manager approval ticked before it can have confirmed status.");
+        }elseif($event->field_venue_manager_approved->value() != 1){
+            form_set_error('field_event_status', "You can't set the status of this event to confirmed because you don't have VENUE manager approval for it yet." );
+        }
+        
+        if(!empty($form_state['values']['field_category_manager_approved']) && $form_state['values']['field_category_manager_approved']['und'][0]['value'] == 0){
+            form_set_error('field_category_manager_approved', "The event must have CATEGORY manager approval ticked before it can have confirmed status.");
+        }elseif($event->field_category_manager_approved->value() != 1){
+            form_set_error('field_event_status', "You can't set the status of this event to confirmed because you don't have CATEGORY manager approval for it yet." );
+        }
+
+    }
+    
+}
+
+
+// been replaced by using hook_node_presave
+/* for new node call the notification code 
+function rbge_cal_node_insert($node){
+    rbge_cal_single_day_event_check($node);
+    rbge_cal_fire_notifications($node);
+}
+*/
+
+/* for node updates call the notification code */
+function rbge_cal_node_presave($node){
+    rbge_cal_single_day_event_check($node);
+    rbge_cal_fire_notifications($node);
+//    dpm($node->field_event_date);
+}
+
+/* forces all events to have the same day */
+function rbge_cal_single_day_event_check($node){
+    
+    // this may only be for events that were entered when it was possible to set the wrong end date
+    for ($i=0; $i < count($node->field_event_date['und']); $i++) { 
+        $start_day = substr($node->field_event_date['und'][$i]['value'], 0, 10);
+        $end_day = substr($node->field_event_date['und'][$i]['value2'], 0, 10);
+        //2012-03-12T
+        if($end_day != $start_day){
+            $new_end_time = $start_day . 'T'. substr( $node->field_event_date['und'][$i]['value2'], 11 );
+            drupal_set_message("Events can't run over midnight so en date has been set to " . $new_end_time);
+            $node->field_event_date['und'][$i]['value2'] = $new_end_time;
+        }
+    }
+    
+//   dpm($node->field_event_date);
+}
+
+/*
+    Implements hook_node_presave
+    
+    What we need to do here!
+
+    3) If they have changed the date/times and they are not the venue manager then we make sure it isn't VM approved and email the venue manager
+    
+*/
+function rbge_cal_fire_notifications($node) {
+    
+   global $user;
+   
+   if ($node->type != 'event') return;
+   $event = entity_metadata_wrapper('node', $node);
+   
+   // invalidation rules
+   
+   // if they have changed the venue then they can't have venue manager approval
+   // if they have changed the date then they can't have venue manager approval
+   if(rbge_cal_venue_changed($node) || rbge_cal_date_changed($node)){
+       
+       $event->field_venue_manager_approved->set(0);
+       $event->field_venue_approval_key->set(uniqid()); // set a new key for approval emails
+       drupal_set_message("Date or venue change requires venue manager approval.");
+       
+       if($event->field_event_status->value()->tid == 12 ){
+          $event->field_event_status->set(11);
+          drupal_set_message("Event set to tentative pending venue manager's approval."); 
+       }
+             
+       $force_venue_notification = true;
+       
+   }else{
+       $force_venue_notification = false;
+   }
+   
+   // call to notify the venue manager ( it will handle whether emails are necessary etc )
+   rbge_cal_notify_venue_manager($node, $force_venue_notification);
+   
+   // if they have changed the category then they can't have category manager approval
+   if(rbge_cal_category_changed($node)){
+    
+       $event->field_category_manager_approved->set(0);
+       $event->field_category_approval_key->set(uniqid()); // set a new key for approval emails
+       drupal_set_message("Category change requires category manager approval.");
+       
+       if($event->field_event_status->value()->tid == 12 ){
+          $event->field_event_status->set(11);
+          drupal_set_message("Event set to tentative pending category manager's approval."); 
+       }
+       
+       $force_cat_notification = true;
+       
+   }else{
+       $force_cat_notification = false;
+   }
+   
+   // call to notify the category manager ( it will handle whether emails are necessary etc )
+   rbge_cal_notify_category_manager($node, $force_cat_notification);
+
+   // notify the event creator if the event is now ready to be confirmed.
+   if(rbge_cal_ready_to_confirm($node)){
+       rbge_cal_notify_event_owner($node);
+   }
+   
+}
+
+function rbge_cal_notify_category_manager($node, $force){
+    
+    global $user;
+    global $language;
+    
+    $event = entity_metadata_wrapper('node', $node);
+    if(isset($node->original)){
+        $old_event = entity_metadata_wrapper('node', $node->original);
+    }else{
+        $old_event = false;
+    }
+    
+    // only do stuff if they are asking for approval
+    if( !$event->field_cat_approval_requested->value() ){
+        return;
+    } 
+    
+    // only do this if they have asking for fresh approval - don't want to send an email every
+    // time they save form i.e. need a fresh approval request tick
+    if( !$force && ( !$old_event || $old_event->field_cat_approval_requested->value() ) ) return;
+    
+    if($event->field_event_category->value()){
+
+        $venue_term = taxonomy_term_load($event->field_event_venue->value()->tid);
+        $venue = entity_metadata_wrapper('taxonomy_term', $venue_term);
+
+        $category_term = taxonomy_term_load($event->field_event_category->value()->tid);
+        $category = entity_metadata_wrapper('taxonomy_term', $category_term);
+
+        $managers = get_category_manager_uids($event->field_event_category->value()->tid);
+     
+        if(!$managers){
+            $event->field_category_manager_approved->set(1);
+            drupal_set_message("No managers were found for category so category approval is given automatically.");
+        }elseif(in_array($user->uid, $managers)){
+            $event->field_category_manager_approved->set(1);
+            drupal_set_message("You are a category manager for this category so approval is given automatically.");
+        }else{
+            foreach($managers as $manager_uid){            
+
+                $manager = user_load($manager_uid);
+                drupal_set_message("Emailed category manager $manager->name &lt;$manager->mail&gt;");
+
+                // actually sending the mail
+                drupal_mail(
+                 'rbge_cal', // module
+                 'category_manager_notify', // key for message format
+                 $manager->mail, // to them
+                 $language, // in the default language of the site
+                 $params = array('venue' => $venue, 'event' => $event, 'manager' => $manager, 'category' => $category),
+                 'no-reply@rbge.org.uk' // from no one
+                );
+            }
+        }
+        
+    }
+    
+}
+
+
+/**
+ * Detect changes that the venue manager needs to be notified
+ * about when saving an event node
+ *
+ */
+function rbge_cal_notify_venue_manager($node, $force){
+    
+    global $user;
+    global $language;
+    
+    $event = entity_metadata_wrapper('node', $node);
+    if(isset($node->original)){
+        $old_event = entity_metadata_wrapper('node', $node->original);
+    }else{
+        $old_event = false;
+    }
+    
+    // only do stuff if they are asking for approval
+    if( !$event->field_venue_approval_requested->value() ) return;
+    
+    // only do this if they have asking for fresh approval - don't want to send an email every
+    // time they save form i.e. need a fresh approval request tick
+    if( !$force && ( !$old_event || $old_event->field_venue_approval_requested->value() ) ) return;
+    
+    // OK email all the venue managers and ask them to approve the event
+    
+    // but only if we have a venue!
+    if($event->field_event_venue->value()){
+        
+        $venue_term = taxonomy_term_load($event->field_event_venue->value()->tid);
+        $venue = entity_metadata_wrapper('taxonomy_term', $venue_term);
+        
+        $managers = get_venue_manager_uids($event->field_event_venue->value()->tid);
+        
+        if(!$managers){
+            $event->field_venue_manager_approved->set(1);
+            drupal_set_message("No managers were found for venue so venue approval is given automatically.");
+        }elseif(in_array($user->uid, $managers)){
+            $event->field_venue_manager_approved->set(1);
+            drupal_set_message("You are a venue manager for this venue so approval is given automatically.");
+        }else{
+            foreach($managers as $manager_uid){         
+                   
+                $manager = user_load($manager_uid);
+                drupal_set_message("Emailed venue manager $manager->name &lt;$manager->mail&gt;");
+
+                // actually sending the mail
+                drupal_mail(
+                 'rbge_cal', // module
+                 'venue_manager_notify', // key for message format
+                 $manager->mail, // to them
+                 $language, // in the default language of the site
+                 $params = array('venue' => $venue, 'event' => $event, 'manager' => $manager),
+                 'no-reply@rbge.org.uk' // from no one
+                );
+                
+            }
+        }
+        
+    }
+    
+}
+
+function rbge_cal_exclusive_changed($node){
+    
+    if( !empty($node->original->field_exclusive_use_of_venue) ){
+        $old_exclusive = $node->original->field_exclusive_use_of_venue['und'][0]['value'];
+    }else{
+        $old_exclusive = -1;
+    }
+
+    if( !empty($node->field_exclusive_use_of_venue) ){
+        $exclusive = $node->field_exclusive_use_of_venue['und'][0]['value'];
+    }else{
+        $exclusive = -1;
+    }
+
+    if($exclusive != $old_exclusive){
+       return true;
+    }else{
+       return false;
+    } 
+    
+}
+
+function rbge_cal_date_changed($node){
+   
+    // get the old date
+    if( !empty($node->original->field_event_date) ){
+       $old_start = $node->original->field_event_date['und'][0]['value'];
+       $old_end = $node->original->field_event_date['und'][0]['value'];
+       $old_repeat = $node->original->field_event_date['und'][0]['rrule'];
+    }else{
+       $old_start = -1;
+       $old_end = -1;
+       $old_repeat = -1;
+    }
+
+    if( !empty($node->field_event_date) ){
+       $start = $node->field_event_date['und'][0]['value'];
+       $end = $node->field_event_date['und'][0]['value'];
+       $repeat = $node->field_event_date['und'][0]['rrule'];
+    }else{
+       $start = -1;
+       $end = -1;
+       $repeat = -1;
+    }
+    
+    if($start != $old_start || $end != $old_end || $repeat != $old_repeat){
+        return true;
+    }else{
+        return false;
+    }
+
+}
+
+function rbge_cal_notify_event_owner($node){
+    
+    global $user;
+    global $language;
+    
+    // do nothing if this owner who is OKing it
+    if($user->uid == $node->uid) return;
+    
+    // get the event owner we need to talk to them
+    $owner = user_load($node->uid);
+    drupal_set_message("Emailed event owner $owner->name &lt;$owner->mail&gt; to say they can confirm the event now.");
+    
+    // make the node an event
+    $event = entity_metadata_wrapper('node', $node);
+
+    // actually sending the mail
+    drupal_mail(
+      'rbge_cal', // module
+      'event_owner_notify', // key for message format
+      $owner->mail, // to them
+      $language, // in the default language of the site
+      $params = array('event' => $event, 'owner' => $owner),
+      'no-reply@rbge.org.uk' // from no one
+    );
+
+}
+
+function rbge_cal_ready_to_confirm($node){
+    
+    $event = entity_metadata_wrapper('node', $node);
+
+    // if it is already confirmed then do nothing
+    if($event->field_event_status->value()->tid == 12 ) return;
+
+    // get the last state of the node
+    if(isset($node->original)){
+        $old_event = entity_metadata_wrapper('node', $node->original);
+    }else{
+        // there is no old event so we are creating not updating
+        return false;
+    }    
+
+    // if neither approval has changed then don't do anything
+    if(
+        ($event->field_venue_manager_approved->value() == $old_event->field_venue_manager_approved->value())
+        &&
+        ($event->field_category_manager_approved->value() == $old_event->field_category_manager_approved->value())
+    ) return false;
+    
+    // if they are both positive then we are ready to confirm
+    if($event->field_venue_manager_approved->value() && $event->field_category_manager_approved->value()) return true;
+
+}
+
+function rbge_cal_category_changed($node){
+    
+    $cat_tid = $node->field_event_category['und'][0]['tid'];
+    
+    // get the old venue tid
+    if( !empty($node->original->field_event_category) ){
+        $old_cat_tid = $node->original->field_event_category['und'][0]['tid'];
+    }else{
+        $old_cat_tid = -1;
+    }
+    
+    if($cat_tid != $old_cat_tid) return true;
+    else return false;
+    
+}
+
+function rbge_cal_venue_changed($node){
+    
+    if(!empty($node->field_event_venue['und'][0]['tid'])){
+        $venue_tid = $node->field_event_venue['und'][0]['tid'];
+    }else{
+        $venue_tid = -1;
+    }
+    
+    // get the old venue tid
+    if( !empty($node->original->field_event_venue) ){
+        $old_venue_tid = $node->original->field_event_venue['und'][0]['tid'];
+    }else{
+        $old_venue_tid = -1;
+    }
+    
+    if($venue_tid != $old_venue_tid) return true;
+    else return false;
+    
+}
+
+function rbge_cal_node_view_alter(&$build){
+    
+    // we only alter event nodes
+    if($build['#bundle'] != 'event') return;
+    
+    // remove the link to the calendar - that sucks
+    unset($build['links']['calendar']);
+    
+    // build a list of the overlapping events
+    $node = $build['#node'];
+    $dates = array();
+    foreach($node->field_event_date['und'] as $date_field){
+        $dates[] = array(
+            'start' => $date_field['value'],
+            'end' => $date_field['value2']
+        );
+    }
+    $venue_tid = $node->field_event_venue['und'][0]['tid'];
+    $event_nid = $node->nid;
+    
+    $overlaps = rbge_cal_venue_collisions($event_nid, $venue_tid, $dates, false);
+    
+    if(count($overlaps)){
+        $londonTz = new DateTimeZone('Europe/London');
+        $utcTz = new DateTimeZone('UTC');
+        $count = 0;
+        
+        
+        $overlap_messages = array();
+        foreach($overlaps as $collision){
+            $colliding_event = node_load($collision['nid']);
+            $colliding_wrapper = entity_metadata_wrapper('node', $colliding_event);
+            $colliding_date = $colliding_wrapper->field_event_date->value();
+            $colliding_dt = new DateTime($collision['start']);
+            $colliding_link = l($colliding_wrapper->label(), '/node/' . $collision['nid'], array('attributes' => array('target'=>'_blank')));
+            $colliding_date_link = l($colliding_dt->format('l jS F Y'), 'rbge/availability/' . $colliding_dt->format('Y/m/d') . '/day', array('attributes' => array()));
+            $exclusive = $colliding_wrapper->field_exclusive_use_of_venue->value() ? "Exclusive" : "Non-Exclusive"; 
+            $overlap_messages[] = "\"$colliding_link\" on $colliding_date_link ~ $exclusive";
+            $count++;
+        }
+        
+        
+        $build['overlap_head'] = array(
+              '#type' => 'markup',
+              '#markup' => "<p></p><h2>Overlapping Events At This Venue</h2>",
+              '#weight'=> 1000
+        );
+        
+        $build['overlap_list'] = array(
+          '#items' => $overlap_messages,
+          '#theme' => 'item_list',
+          '#weight'=> 1001
+        );
+        
+    }
+    
+}
+
+
+/*
+    Change the event node form appropriately
+*/
+function rbge_cal_form_event_node_form_alter(&$form, &$form_state, $form_id) {
+//function rbge_cal_form_event_node_form_after_builder(&$form, &$form_state, $form_id) {
+            
+    // get the user
+    global $user;
+    
+    // we flat up an after build function so we can faff with the form once 
+    // it has been built
+    //$form['#after_build'][] = 'rbge_cal_form_event_node_form_after_build';
+    
+    // if this has been imported from PlanetFM then throw a warning.
+    rbge_cal_planet_fm_check($form_state['node']);
+    
+    // if there is no lead contact set then set it to the current user
+    if(empty($form['field_lead_contact']['und'][0]['value']['#default_value'])){
+        $form['field_lead_contact']['und'][0]['value']['#default_value'] = $user->name;
+    }
+            
+    // can they approve the venue? This doesn't work on create
+    $can_approve_venue = false;
+    $venue_tid = false;
+    if(!empty($form['field_event_venue']['und'][0]['tid']['#default_value'])){
+        $venue_tid = $form['field_event_venue']['und'][0]['tid']['#default_value'];
+        $can_approve_venue = is_venue_manager($user->uid, $venue_tid);
+    }
+    
+    // is venue already approved? If so they can remove it whoever they are
+    $venue_already_approved = false;
+    if(isset($form_state['node']->field_venue_manager_approved['und'][0]['value'])){
+        $venue_already_approved = $form_state['node']->field_venue_manager_approved['und'][0]['value'];
+    }
+    
+    if($can_approve_venue || $venue_already_approved){
+       unset($form['field_venue_approval_requested']); // hide the user request
+    }else{
+       unset($form['field_venue_manager_approved']); // hide the manager
+    }
+    
+    // can they approve the category?
+    $can_approve_cat = false;
+    $cat_tid = false;
+    if(!empty($form['field_event_category']['und'][0]['tid']['#default_value'])){
+        $cat_tid = $form['field_event_category']['und'][0]['tid']['#default_value'];
+        $can_approve_cat = is_category_manager($user->uid, $cat_tid);
+    }
+
+    // is category already approved? If so they can remove it whoever they are
+    $cat_already_approved = false;
+    if(isset($form_state['node']->field_category_manager_approved['und'][0]['value'])){
+        $cat_already_approved = $form_state['node']->field_category_manager_approved['und'][0]['value'];
+    }
+    
+    if($can_approve_cat || $cat_already_approved){
+       unset($form['field_cat_approval_requested']); // hide the user request
+    }else{
+       unset($form['field_category_manager_approved']); // hide the manager
+    }
+    
+    
+    // add a limit validation on the delete buttons
+    $form['actions']['delete']['#limit_validation_errors'] = array();
+//    dpm($form['actions']);
+    
+    // add a second save button to go at the top of the page
+    $form['actions_top'] =  $form['actions'];
+    $form['actions_top']['#attributes'] = array('class' => array('rbge-cal-actions-top'));
+    $form['actions']['#attributes'] = array('class' => array('rbge-cal-actions-bottom'));
+    
+
+    // advertised times come higher
+    $form['advertised_times'] = array(
+         '#type' => 'fieldset',
+          '#title' => t('Advertised Times'),
+          '#collapsible' => false,
+          '#collapsed' => true,
+    );
+    $form['advertised_times']['field_advertised_start_time'] = $form['field_advertised_start_time']; unset($form['field_advertised_start_time']);
+    $form['advertised_times']['field_advertised_end_time'] = $form['field_advertised_end_time']; unset($form['field_advertised_end_time']);
+
+    
+    // we move some of the less common fields into an expandable bit
+    $form['images'] = array(
+         '#type' => 'fieldset',
+          '#title' => t('Image'),
+          '#weight' => 10,
+          '#collapsible' => true,
+          '#collapsed' => true,
+    );
+    $form['images']['field_image'] = $form['field_image']; unset($form['field_image']);
+    $form['images']['field_image_caption'] = $form['field_image_caption']; unset($form['field_image_caption']);
+    
+    // event documents
+    //$form['field_event_document'] = $form['field_event_document']; unset($form['field_event_document']);
+    $form['field_event_document']['#post_render'] = array('rbge_cal_collapsible_container');
+    $form['field_event_document']['#weight'] = 12;
+    
+
+    /*  no notion of venue setup for now
+    
+    $form['venue_setup'] = array(
+         '#type' => 'fieldset',
+          '#title' => t('Configuration'),
+          '#weight' => 18,
+          '#collapsible' => true,
+          '#collapsed' => true,
+    );
+    $form['venue_setup']['field_venue_configuration'] = $form['field_venue_configuration']; unset($form['field_venue_configuration']);
+    $form['venue_setup']['field_number_participants_expect'] = $form['field_number_participants_expect']; unset($form['field_number_participants_expect']);
+    */
+    unset($form['field_venue_configuration']);
+    unset($form['field_number_participants_expect']);
+    
+    // we hide ICT requests for now - might bring this back when everything else if live
+    unset($form['field_ict_requested']);
+    // $form['venue_setup']['field_ict_requested'] = $form['field_ict_requested']; unset($form['field_ict_requested']);
+    
+    $form['ancillary_events'] = array(
+         '#type' => 'fieldset',
+          '#title' => t('Ancillary Events'),
+          '#collapsible' => true,
+          '#collapsed' => true,
+    );
+    $form['ancillary_events']['field_ancillary_events'] = $form['field_ancillary_events']; unset($form['field_ancillary_events']);    
+    
+    // we keep the approval keys to ourselves
+    unset($form['field_category_approval_key']);
+    unset($form['field_venue_approval_key']);
+    unset($form['field_planetfm_id']);
+    
+    // cosmentically add some help info?
+    $form['field_event_date']['#prefix'] = '<label>Date & Time</label>' . $form['field_event_date']['und']['#description'];
+        
+    // if we are being called from the availability page then a default start date and venue will have been set
+    if(isset($_GET['date'])){
+        
+        //$preset_date = new DateTime(substr($_GET['date'], 0,19));
+        $preset_date = new DateTime($_GET['date']);
+        
+        if(isset($_GET['plus_seconds'])){
+            // seconds need to be rounded down the nearest 15 minutes to fit with the UI
+            $mins = floor($_GET['plus_seconds'] / 60);
+            $quarters = floor($mins / 15);
+            $seconds = $quarters * 15 * 60;
+            
+            $preset_date->add( new DateInterval('PT'. $seconds .'S'));
+        }
+        
+        // round preset_date to nearest 15 minutes
+
+        // remove seconds from the datetime (we add them back later)
+        $seconds = $preset_date->format("s");
+        $preset_date->sub(new DateInterval("PT". $seconds ."S"));
+        
+        // grab the minutes
+        $minutes = $preset_date->format("i");
+        
+        // add in the seconds as a fraction of a minute
+        $minutes = $minutes + ($seconds/60);
+        
+        // get the mod of the minutes
+        $minutes = $minutes % 15;
+
+        // if the mod is greater than half way then
+        // add enough minutes to make it to the next quarter hour
+        if($minutes >= 7.5){
+            // round up
+            $diff = 15 - $minutes;
+            $preset_date->add(new DateInterval("PT".$diff."M"));
+        }else{
+            // we are less than halfway so round down to previous quarter
+            $preset_date->sub(new DateInterval("PT".$minutes."M"));
+        }
+     
+        // set it as the default start time
+        $form['field_event_date']['und'][0]['#default_value']['value'] = $preset_date->format(DATE_ATOM);
+        drupal_set_message("<strong>Event date set to:</strong> " . $preset_date->format("l jS F Y @ H:i") . " for one hour");
+        $preset_date->add(new DateInterval("PT1H"));
+        $form['field_event_date']['und'][0]['#default_value']['value2'] = $preset_date->format(DATE_ATOM);
+        
+    }
+    
+    if(isset($_GET['venue_tid'])){
+        $parents = taxonomy_get_parents_all($_GET['venue_tid']);
+        $venue = $parents[0];
+        $venue_path = array();
+        foreach($parents as $t){
+            $venue_path[] = $t->name;
+        }
+        
+        $form['field_event_venue']['und'][0]['tid']['#default_value'] = $venue->tid;
+        drupal_set_message("<strong>Venue set to:</strong> " . implode(' > ', array_reverse($venue_path)));
+        
+    }
+    
+    
+    // finally set the weights so the parts of the form are in the right order
+    $form['actions_top']['#weight'] = -1;
+    $form['actions_top']['submit']['#weight'] = 15;
+    $form['actions_top']['delete']['#weight'] = 5;
+    $form['title']['#weight'] = 0;
+    $form['field_event_status']['#weight'] = 10;
+    $form['field_lead_contact']['#weight'] = 20;
+    $form['field_event_category']['#weight'] = 30;
+    $form['field_cat_approval_requested']['#weight'] = 35;
+    $form['field_category_manager_approved']['#weight'] = 35;
+    $form['field_event_venue']['#weight'] = 40;
+    $form['field_exclusive_use_of_venue']['#weight'] = 50;
+    $form['field_venue_approval_requested']['#weight'] = 55;
+    $form['field_venue_manager_approved']['#weight'] = 55;
+    //$form['approval_fields']['#weight'] = 60;
+    $form['field_event_date']['#weight'] = 70;
+    $form['advertised_times']['#weight'] = 80;
+    $form['field_event_flags']['#weight'] = 90;
+    $form['body']['#weight'] = 100;
+    $form['field_notes_to_staff']['#weight'] = 110;
+    $form['images']['#weight'] = 120;
+    $form['field_event_document']['#weight'] = 130;
+    //$form['venue_setup']['#weight'] = 140;
+    $form['ancillary_events']['#weight'] = 150;
+    $form['field_booking_link']['#weight'] = 155;
+    $form['field_embargo_date']['#weight'] = 156;    
+    $form['actions']['#weight'] = 160;
+    $form['actions']['submit']['#weight'] = 15;
+    $form['actions']['delete']['#weight'] = 5;
+    $form['additional_settings']['#weight'] = 170;
+    
+    
+
+
+}
+
+function rbge_cal_form_event_node_form_after_build($form){
+    $form['field_notes_to_staff']['und'][0]['format']['#attributes']['class'][] = 'rbge-cal-hidden';
+    $form['body']['und'][0]['format']['#attributes']['class'][] = 'rbge-cal-hidden';
+    $form['field_notes_to_staff']['und'][0]['#format'] = 'full_html';
+    $form['field_notes_to_staff']['und'][0]['format']['format']['#default_value'] = 'full_html';
+    return $form;
+}
+
+/*
+ * set a warning message if there are repeats in the db but
+ * no associated repeat rule as repeats will be lost.
+ */
+function rbge_cal_planet_fm_check($node){
+    
+    
+    // does if have a pfm id
+    if(!isset($node->field_planetfm_id['und'][0]['value'])) return;
+    
+    // are there more than one event dates associated
+     $result = db_select('field_data_field_event_date', 'ed')
+             ->fields('ed')
+             ->condition('entity_id', $node->nid,'=')
+             ->execute();
+     if($result->rowCount() < 2) return;
+     
+    // does it lack a repeat rule?
+    if(isset($node->field_event_date['und'][0]['rrule']) && $node->field_event_date['und'][0]['rrule'] != null) return;
+    
+    // got this far so warn them
+    drupal_set_message('This is a PlanetFM imported event with repeats. The repeats WILL BE DELETED ON SAVE unless you recreate them now.', 'warning');
+
+}
+
+function rbge_cal_collapsible_container($container, $element){
+    return str_replace('class="form-wrapper', 'class="form-wrapper collapsible collapsed',$container);
+}
+
+function is_venue_manager($uid, $venue_tid){
+    return in_array($uid, get_venue_manager_uids($venue_tid));
+}
+function get_venue_manager_uids($venue_tid){
+    $managers = array();
+    $venues = taxonomy_get_parents_all($venue_tid);
+    foreach($venues as $venue){
+        if($venue->field_venue_manager){
+            //dsm($venue->field_venue_manager);
+            foreach($venue->field_venue_manager['und'] as $manager){
+                $managers[] = $manager['target_id'];
+            }
+            break;
+        }
+    }
+        
+    return $managers;
+}
+
+
+function is_category_manager($uid, $cat_tid){
+    return in_array($uid, get_category_manager_uids($cat_tid));
+}
+function get_category_manager_uids($cat_tid){
+    $managers = array();
+    $cats = taxonomy_get_parents_all($cat_tid);
+    foreach($cats as $cat){
+        if($cat->field_event_category_manager){
+            foreach($cat->field_event_category_manager['und'] as $manager){
+                $managers[] = $manager['target_id'];
+            }
+            break;
+        }
+    }
+    return $managers;
+}
+
+
+/*
+    Is the venue available for multiple dates
+*/
+function rbge_cal_venue_collisions($event_nid, $venue_tid, $dates, $exclusive = true){
+/*
+    dpm($dates);
+    dpm("event_nid: " . $event_nid);
+    dpm("venue_tid: " . $venue_tid);
+*/
+   // this may be inefficient but we will change it if there is a problem later
+   // EntityFieldQuery doesn't do 
+   
+   $collisions = array();
+   $londonTz = new DateTimeZone('Europe/London');
+   $utcTz = new DateTimeZone('UTC');
+   
+   // dpm($dates);
+  
+   foreach($dates as $date){
+       
+       
+       // dates are stored in the site's timezone?
+       // https://www.drupal.org/node/998076
+    
+       //dpm("raw: " . $date['start']);
+       $start = new DateTime($date['start'], $utcTz);
+       //dpm("London: " . $start->format(DATE_ATOM));
+       //$start->setTimeZone($utcTz);
+       //dpm("utc: " . $start->format(DATE_ATOM));
+       $date_start = $start->format('Y-m-d\TH:i:s'); // 2016-11-01T13:15:00
+       
+       $end = new DateTime($date['end'], $utcTz);
+       //$end->setTimeZone($utcTz);
+       $date_end = $end->format('Y-m-d\TH:i:s');
+      
+       // special case for all day events - just for comparison move the end time to just before midnight
+       // fixme? - there is a flag in the field for all day events..
+       if($date['start'] == $date['end'] && preg_match('/T00:00:00$/', $date['start'])){
+           $date['end'] = substr($date['end'], 0, 10) . 'T23:59:59';
+       }
+       $start_day = substr($date['start'], 0, 10) . 'T00:00:00';
+       
+       // turn on and off check for exclusive use
+       if($exclusive) $exclusive_clause = "AND u.field_exclusive_use_of_venue_value = 1";
+       else $exclusive_clause = "";
+
+       $sql = "SELECT
+           e.field_event_date_value AS start,
+           e.field_event_date_value2 AS end,
+           e.entity_id AS event_nid
+       FROM field_data_field_event_date e INNER JOIN field_data_field_event_venue v ON v.entity_id = e.entity_id AND v.field_event_venue_tid = $venue_tid
+       INNER JOIN field_data_field_exclusive_use_of_venue u ON u.entity_id = e.entity_id $exclusive_clause 
+
+       WHERE
+       (
+           (
+                    # Does the start time fall within another event - ok for start time to be same as end time of other event but not the beginning
+                   (CAST(e.field_event_date_value AS DATETIME) <= CAST('$date_start' AS DATETIME)) AND (CAST(e.field_event_date_value2 AS DATETIME) > CAST('$date_start' AS DATETIME))
+           )OR(
+                    # Does the end time fall within another event - ok for end time to be same as start time of other event
+                   (CAST(e.field_event_date_value AS DATETIME) < CAST('$date_end' AS DATETIME)) AND (CAST(e.field_event_date_value2 AS DATETIME) >= CAST('$date_end' AS DATETIME))
+           )OR(
+                    # Does it start before and end after another event
+                   (CAST(e.field_event_date_value AS DATETIME) >= CAST('$date_start' AS DATETIME)) AND (CAST(e.field_event_date_value2 AS DATETIME) <= CAST('$date_end' AS DATETIME))
+           )OR(
+                    # is it an all day event that matches
+                   (CAST(e.field_event_date_value AS DATETIME) = CAST('$start_day' AS DATETIME)) AND (CAST(e.field_event_date_value2 AS DATETIME) = CAST('$start_day' AS DATETIME))
+           )
+       )";
+       
+       if ($event_nid){
+           $sql .= "AND (e.entity_id != $event_nid )";
+       }
+       
+      $result = db_query($sql);
+      
+//      if($result->rowCount()){dpm($sql);}
+
+       foreach($result as $hit){         
+           $collisions[] = array('nid' => $hit->event_nid, 'start' => $date_start, 'end' => $date_end, 'UTC' => true);
+       }
+
+   }
+
+   return $collisions;
+   
+}
+
+function rbge_cal_wysiwyg_editor_settings_alter(&$settings, $context) {
+  if ($context['profile']->editor == 'ckeditor') {
+    $settings['height'] = 100;
+   }
+}
+
+/*
+ */
+function rbge_get_all_dates($event_start, $event_end, $repeat_pattern){
+
+    $dates = array();
+    
+    $tzLondon = new DateTimeZone('Europe/London');
+    $tzUTC =  new DateTimeZone('UTC');
+    
+    $start_date = new DateTime($event_start, $tzUTC);
+    //$start_date->setTimeZone($tzUTC);
+    $end_date = new DateTime($event_end, $tzUTC);
+    //$start_date->setTimeZone($tzUTC);
+    
+    $repeat_limit = new DateTime($event_start, $tzUTC);
+    //$repeat_limit->setTimeZone($tzUTC);
+    $repeat_limit = $repeat_limit->add(new DateInterval('P1Y'));
+ /*
+    dpm('start_raw: ' . $event_start);
+    dpm('end_raw: ' . $event_end);
+    dpm('start_date: ' . $start_date->format(DATE_ATOM));
+    dpm('end_date: ' . $end_date->format(DATE_ATOM));
+    dpm('repeat_limit: ' . $repeat_limit->format(DATE_ATOM));
+    dpm('$repeat_pattern: ' . $repeat_pattern);
+*/
+    if(!$repeat_pattern){
+        $dates[] = array(
+            'start' => $event_start,
+            'end' => $event_end
+        );
+    }else{
+        
+        /*
+            RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO;COUNT=11;WKST=MO
+            EXDATE:20160215T000000Z
+            RDATE:20161013T230000Z
+        */
+        
+        $starts =  date_repeat_calc(
+            $repeat_pattern, // rrule
+            $start_date->format(DATE_ATOM), // start
+            $repeat_limit->format(DATE_ATOM), // end
+            rbge_cal_get_dates_from_repeat_rule($repeat_pattern, 'EXDATE'), // exceptions
+            'UTC', // timezone
+            rbge_cal_get_dates_from_repeat_rule($repeat_pattern, 'RDATE') // additions
+        );
+                
+        $ends =  date_repeat_calc(
+            $repeat_pattern, // rrule
+            $event_end, // start
+            $repeat_limit->format(DATE_ATOM), // end
+            rbge_cal_get_dates_from_repeat_rule($repeat_pattern, 'EXDATE'), // exceptions
+            'UTC', // timezone
+            rbge_cal_get_dates_from_repeat_rule($repeat_pattern, 'RDATE') // additions
+        );
+
+        $prev_end_date = false;
+        
+        for($i = 0; $i < count($starts); $i++){
+
+            // we do some messing because the size of the start and end lists
+            // may not add up.
+            $start = $starts[$i];
+            $end = false;
+            if(isset( $ends[$i]) ){
+                $end = $ends[$i];
+                $prev_end_date = $ends[$i];
+            }elseif($prev_end_date){
+                $end = $prev_end_date;
+            }else{
+                $end = $start;
+            }
+            
+            if($start && $end){
+                $dates[] = array(
+                    'start' => $start,
+                    'end' => $end
+                );
+            }
+            
+        }
+        
+        /*
+         all passed dates are UTC but the repeat calc doesn't adjust the times for DST
+         - if the start date is in the winter and a repeat is in the summer we need to knock on hour off
+         - if the start date is in the summer and a repeat is in the winter we need to add an hour on.
+         This should give UTC corrected times.
+        */
+        $start_date_london = new DateTime($event_start, $tzLondon);
+        $run_starts_in_summer = $start_date_london->format('I');
+        $one_hour_interval = new DateInterval('PT1H');
+        $corrected_dates = array();
+        foreach($dates as $repeat){
+            
+            $repeat_start_london = new DateTime($repeat['start'], $tzLondon);
+            
+            if($run_starts_in_summer && !$repeat_start_london->format('I')){
+
+                // - the start date is in the summer and a repeat is in the winter we need to add an hour on.
+                $new_start_d = new DateTime($repeat['start']);
+                $new_start_d->add($one_hour_interval);
+                $new_end_d = new DateTime($repeat['end']);
+                $new_end_d->add($one_hour_interval);
+                
+                $new_repeat['start'] = $new_start_d->format(DATE_FORMAT_DATETIME);
+                $new_repeat['end'] = $new_end_d->format(DATE_FORMAT_DATETIME);
+                
+                
+                $corrected_dates[] = $new_repeat;
+                
+            }
+            
+            
+            elseif(!$run_starts_in_summer && $repeat_start_london->format('I')){
+                
+                // - the start date is in the winter and a repeat is in the summer we need to knock on hour off
+                $new_start_d = new DateTime($repeat['start']);
+                $new_start_d->sub($one_hour_interval);
+                $new_end_d = new DateTime($repeat['end']);
+                $new_end_d->sub($one_hour_interval);
+                
+                $new_repeat['start'] = $new_start_d->format(DATE_FORMAT_DATETIME);
+                $new_repeat['end'] = $new_end_d->format(DATE_FORMAT_DATETIME);
+                
+                $corrected_dates[] = $new_repeat;
+                
+            }else{
+                // start and repeat are in the same season so just copy them over
+                $corrected_dates[] = $repeat;
+            }
+            
+        }
+        
+        $dates = $corrected_dates;
+    
+    }
+ /*
+    dpm($dates);
+    dpm($corrected_dates);
+  */ 
+    return $dates;
+
+}
+
+function rbge_cal_get_dates_from_repeat_rule($rrule, $kind){
+    
+    $dates = array();
+    
+    $lines = explode("\n", $rrule);
+    foreach($lines as $line){
+        if(strpos($line, $kind) === 0){
+            
+            $dates_string = substr($line, strlen($kind) + 1);
+            $date_strings = explode(',', $dates_string);
+
+            $londonTz = new DateTimeZone('Europe/London');
+            $utcTz = new DateTimeZone('UTC');            
+            foreach($date_strings as $ds){               
+                $d = new DateTime($ds, $utcTz);
+                $d->setTimeZone($londonTz);
+                $dates[] = $d->format('Y-m-d'); // devoid of timezone info to prevent double converting.
+            }
+            
+        }
+    }
+
+    return $dates;
+}
+
+function rbge_cal_mail($key, &$message, $params){
+    
+    global $user;
+
+    $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
+    //$message['from'] = $message['headers']['From'] = '"RBGE Universal Calendar ~ Do Not Reply ~" <no-reply@rbge.org.uk>';
+    
+    switch ($key) {
+        
+        case 'venue_manager_notify':
+
+          $venue = $params['venue'];
+          $event = $params['event'];
+          $manager = $params['manager'];
+      
+          // Set headers etc
+          // $message['headers']['CC'] = $user->mail; // they no longer get a copy as it would reveal auto confirm links
+          // $message['Reply-to'] = $user->mail;
+          $message['subject'] = 'Venue Manager Notification: ' . $venue->label();
+          $body = '<p>Hi ' . $manager->name . ",</p>";
+          rbge_cal_add_event_details($body, $user, $manager, $venue, $event);
+          $body .= "<p>You are a venue manager for '" . $venue->label() . "' so you need to approve the event before it can be confirmed.</p>";
+          $body .= "<p>Approve it instantly by clicking this link: https://". $_SERVER['HTTP_HOST'] . "/rbge/apps/venue/approve/" . $event->field_venue_approval_key->value() . "</p>";
+          $body .= "<p>View and edit the event by clicking this link: https://". $_SERVER['HTTP_HOST'] . "/rbge/apps/venue/view/" . $event->field_venue_approval_key->value() . "</p>";
+          $event_label = $event->label();
+          $body .= "<p><a href=\"mailto:$user->mail?subject=$event_label\">Click here to contact $user->name</a>.</p>";
+          $body .= '<p>' . rbge_cal_signature() . "</p>";
+          $body .= "<p>The Universal Calendar</p>";
+          
+          $message['body'][] = $body;
+          
+          break;
+    
+        case 'category_manager_notify':
+      
+            $venue = $params['venue'];
+            $event = $params['event'];
+            $manager = $params['manager'];
+                  
+            // we need the category as well
+            $category = $params['category'];
+            
+            // $message['headers']['CC'] = $user->mail; // they no longer get a copy as it would reveal auto confirm links
+            // $message['Reply-to'] = $user->mail;
+            $message['subject'] = 'Category Manager Notification: ' . $category->label();
+            
+            $body = '<p>Hi ' . $manager->name . ",</p>";
+            rbge_cal_add_event_details($body, $user, $manager, $venue, $event);
+            $body .= "<p>They have placed this in the '" . $category->label() . "' category which you manage so you must approve the event before it can be confirmed.</p>";
+            $body .= "<p>Approve it instantly by clicking this link: https://". $_SERVER['HTTP_HOST'] . "/rbge/apps/category/approve/" . $event->field_category_approval_key->value(). "</p>";
+            $body .= "<p>View and edit the event by clicking this link: https://". $_SERVER['HTTP_HOST'] . "/rbge/apps/category/view/" . $event->field_category_approval_key->value(). "</p>";
+            $event_label = $event->label();
+            $body .= "<p><a href=\"mailto:$user->mail?subject=$event_label\">Click here to contact $user->name</a>.</p>";
+            $body .= '<p>' .  rbge_cal_signature(). "</p>";
+            $body .= "<p>The Universal Calendar</p>";
+            
+            $message['body'][] = $body;
+            
+            break;
+            
+        case 'event_owner_notify':
+            
+            $event = $params['event'];
+            $owner = $params['owner'];
+            
+            $message['subject'] = 'Event Owner Notification: ' . $event->label();
+            $body = '<p>Hi ' . $owner->name . ",</p>";
+            $body .= "<p>The event '" . $event->label() . "' is now ready to be confirmed.</p>";
+            $body .= "<p>View and edit the event by clicking this link: https://". $_SERVER['HTTP_HOST'] . "/rbge/apps/category/view/" . $event->field_category_approval_key->value() . "</p>";
+            $body .= "<p>". rbge_cal_signature() . "</p>";
+            $body .= "<p>The Universal Calendar</p>";     
+            
+            $message['body'][] = $body;
+            
+            break;       
+    
+    }
+    
+}
+
+function rbge_cal_add_event_details(&$body, $user, $manager, $venue, $event){
+    
+      $body .= '<p>' . $user->name . " has booked:";
+      $body .= $venue->label();
+      $body .= ' <strong>For:</strong> ';
+      $body .= '"' . $event->label() . '"';
+      $body .= ' <strong>On:</strong></p>';
+      
+      $date_val = $event->field_event_date->value();
+      if(isset($date_val[0]['all_day']) && $date_val[0]['all_day']){
+         $all_day = " - All Day";
+         $format = 'l jS F Y';
+      }else{
+          $all_day = false;
+          $format = 'l jS F Y H:i';
+      }
+      
+      $dates = rbge_get_all_dates($date_val[0]['value'], $date_val[0]['value2'], $date_val[0]['rrule']);
+      
+      
+      $londonTz = new DateTimeZone('Europe/London');
+      $utcTz = new DateTimeZone('UTC');
+    
+      foreach($dates as $date){          
+          
+          $start_dt = new DateTime($date['start'], $utcTz);
+          $start_dt->setTimeZone($londonTz);
+          $start = $start_dt->format($format);
+          
+          $end_dt = new DateTime($date['end'], $utcTz);
+          $end_dt->setTimeZone($londonTz);
+          $end = $end_dt->format($format);
+         
+          $body .= " * $start to $end $all_day<br/>";
+      }
+    
+}
+
+function rbge_cal_signature(){
+    
+    return '';
+
+    switch ( rand ( 0 , 21 ) ) {
+        case 0: return "Best wishes,";
+        case 1: return "Fondest regards,";
+        case 2: return "Best,";
+        case 3: return "Yours sincerely,";
+        case 4: return "Faithfully yours,";
+        case 5: return "Yours faithfully,";
+        case 6: return "All my love,";
+        case 7: return "You are forever in my heart,";
+        case 8: return "Chin chin,";
+        case 9: return "Bye for now,";
+        case 10: return "Catch you later,";
+        case 11: return "Thanks,";
+        case 12: return "Many thanks,";
+        case 13: return "Many many thanks,";
+        case 14: return "Blessings on all your efforts,";
+        case 15: return "You are looking lovely today,";
+        case 16: return "Remember you are special to me,";
+        case 17: return "Remember I am here for you my darling,";
+        case 18: return "Missing you already,";
+        case 19: return "Hasta La Vista, Baby,";
+        case 20: return "I'll Be Back!";
+        case 21: return "Here's looking at you kid,";
+        default: return "All the best";
+        
+    }
+    
+}
+
+function rbge_cal_cron(){
+  
+  // get the js from the stories site for inclusion in home page
+  $js = file_get_contents('http://stories.rbge.org.uk/wp-content/plugins/rbge_syndicate/get_post.php?image_size=thumbnail&number=30');
+  $js = str_replace('http:\/\/stories.rbge.org.uk\/wp-content\/', '\/rbge\/stories\/image?', $js);  
+  $files_dir = file_stream_wrapper_get_instance_by_uri('public://')->getDirectoryPath();
+  $file_path = $files_dir . '/botanics_stories.js';
+  file_put_contents($file_path, $js);
+  //error_log(file_create_url('public://botanics_stories.js'));
+
+}
+
+/*
+ * proxy end point for stories javascript
+ */
+function rbge_cal_stories($mode){
+    
+    if($mode == 'js'){
+        header('Content-Type: application/javascript');
+        //$js = file_get_contents('http://stories.rbge.org.uk/wp-content/plugins/rbge_syndicate/get_post.php' . '?' . $_SERVER['QUERY_STRING']);
+        //$js = str_replace('http:\/\/stories.rbge.org.uk\/wp-content\/', '\/rbge\/stories\/image?', $js);
+        $js = file_get_contents('public://botanics_stories.js');
+        if($js) echo $js;
+        else echo "document.write('run cron to generate botanics_stories.js file')";
+    }elseif($mode == 'image'){
+        // echo 'http://stories.rbge.org.uk/wp-content/' . $_SERVER['QUERY_STRING'];
+        ob_clean();
+        header('Content-Type: image/jpeg');
+        readfile('http://stories.rbge.org.uk/wp-content/' . $_SERVER['QUERY_STRING']);
+    }else{
+        echo $mode;
+    }
+    
+    drupal_exit();
+
+}
+
+function rbge_cal_user_has_role($roles = array()) {
+
+  global $user;
+  
+  if (in_array('administrator', $user->roles)) {
+      return TRUE;
+  }
+
+  if(!is_array($roles)){
+      $roles = array($roles);
+  }
+
+  foreach ($roles as $role) {
+    if (in_array($role, $user->roles)) {
+      return TRUE;
+    }
+  }
+  return FALSE; 
+}
+
